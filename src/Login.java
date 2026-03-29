@@ -166,6 +166,7 @@ public class Login extends JFrame {
 
     public static void main(String[] args) {
         System.out.println("erre");
+        System.out.println("Belal");
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception ignored) {
