@@ -17,6 +17,19 @@ import java.util.regex.Pattern;
 
 public class TransportDashboard extends JFrame {
 
+    // ===== Theme =====
+    private static final Color PAGE_BG = new Color(241, 245, 249);
+    private static final Color CARD_BG = Color.WHITE;
+    private static final Color PRIMARY = new Color(21, 101, 192);
+    private static final Color PRIMARY_DARK = new Color(12, 58, 128);
+    private static final Color PRIMARY_LIGHT = new Color(227, 242, 253);
+    private static final Color TEXT_DARK = new Color(15, 23, 42);
+    private static final Color TEXT_MUTED = new Color(100, 116, 139);
+    private static final Color BORDER_SOFT = new Color(226, 232, 240);
+    private static final Color SUCCESS = new Color(22, 163, 74);
+    private static final Color WARNING = new Color(217, 119, 6);
+    private static final Color DANGER = new Color(220, 38, 38);
+
     // ===== Panels =====
     private VehiclesPanel vehiclesPanel;
     private DriversPanel driversPanel;
@@ -68,6 +81,9 @@ public class TransportDashboard extends JFrame {
     private JTextField txtAlertSearch;
     private List<AlertItem> allAlerts = new ArrayList<>();
 
+    // ===== Report button placeholder =====
+    private AccentButton btnPdfReport;
+
     public TransportDashboard(AuthUser session) {
         this.session = session;
 
@@ -91,12 +107,21 @@ public class TransportDashboard extends JFrame {
         contentPanel = new JPanel(contentLayout);
         contentPanel.setBackground(bgColor);
 
-        JPanel dashboardPanel = new JPanel(new BorderLayout());
+        JPanel dashboardPanel = new JPanel(new BorderLayout(0, 0));
         dashboardPanel.setBorder(new EmptyBorder(16, 16, 16, 16));
         dashboardPanel.setBackground(bgColor);
 
-        dashboardPanel.add(createStatsPanel(), BorderLayout.NORTH);
-        dashboardPanel.add(createDashboardBody(), BorderLayout.CENTER);
+        JPanel bodyWrap = new JPanel(new BorderLayout(0, 16));
+        bodyWrap.setOpaque(false);
+        bodyWrap.add(createDashboardHeader(), BorderLayout.NORTH);
+        bodyWrap.add(createStatsPanel(), BorderLayout.CENTER);
+
+        JPanel centerWrap = new JPanel(new BorderLayout());
+        centerWrap.setOpaque(false);
+        centerWrap.add(bodyWrap, BorderLayout.NORTH);
+        centerWrap.add(createDashboardBody(), BorderLayout.CENTER);
+
+        dashboardPanel.add(centerWrap, BorderLayout.CENTER);
 
         driversPanel = new DriversPanel();
         employeesPanel = new EmployeesPanel();
@@ -120,9 +145,70 @@ public class TransportDashboard extends JFrame {
         SwingUtilities.invokeLater(this::showDashboardScreen);
     }
 
+    // ================== Dashboard Header ==================
+    private JPanel createDashboardHeader() {
+        CardPanel wrap = new CardPanel(26, 10);
+        wrap.setBackground(CARD_BG);
+        wrap.setLayout(new BorderLayout(16, 12));
+        wrap.setBorder(new EmptyBorder(18, 18, 18, 18));
+
+        JPanel textPanel = new JPanel(new GridLayout(2, 1, 0, 4));
+        textPanel.setOpaque(false);
+
+        JLabel title = new JLabel("لوحة التحكم الرئيسية");
+        title.setHorizontalAlignment(SwingConstants.RIGHT);
+        title.setFont(new Font("Tahoma", Font.BOLD, 24));
+        title.setForeground(TEXT_DARK);
+
+        JLabel sub = new JLabel("متابعة السيارات، السائقين، الخطوط، الصيانة، البنزين والتنبيهات من مكان واحد");
+        sub.setHorizontalAlignment(SwingConstants.RIGHT);
+        sub.setFont(new Font("Tahoma", Font.PLAIN, 13));
+        sub.setForeground(TEXT_MUTED);
+
+        textPanel.add(title);
+        textPanel.add(sub);
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        actions.setOpaque(false);
+
+        GhostButton btnRefresh = new GhostButton("تحديث البيانات");
+        btnRefresh.addActionListener(e -> {
+            refreshDashboardStatsAsync();
+            refreshDashboardBodyAsync();
+        });
+
+        btnPdfReport = new AccentButton("تقرير PDF");
+        btnPdfReport.setToolTipText("تقرير PDF");
+        btnPdfReport.addActionListener(e -> {
+            try {
+                TransportDashboardPdfReportService.exportDashboardReport(
+                        "reports/transport-dashboard-report.pdf",
+                        session != null ? session.displayName : "System"
+                );
+                JOptionPane.showMessageDialog(this, "PDF created successfully");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        ImageIcon reportIcon = loadIcon("icons/pdf.png", 18);
+        if (reportIcon != null) {
+            btnPdfReport.setIcon(reportIcon);
+            btnPdfReport.setIconTextGap(8);
+            btnPdfReport.setHorizontalTextPosition(SwingConstants.LEFT);
+        }
+
+        actions.add(btnRefresh);
+        actions.add(btnPdfReport);
+
+        wrap.add(textPanel, BorderLayout.CENTER);
+        wrap.add(actions, BorderLayout.WEST);
+
+        return wrap;
+    }
+
     // ================== Dashboard Body ==================
     private JPanel createDashboardBody() {
-        JPanel body = new JPanel(new BorderLayout(16, 16));
+        JPanel body = new JPanel(new BorderLayout(18, 18));
         body.setOpaque(false);
 
         body.add(createFleetHealthStrip(), BorderLayout.NORTH);
@@ -133,7 +219,7 @@ public class TransportDashboard extends JFrame {
 
     // ===== Fleet Health Strip =====
     private JPanel createFleetHealthStrip() {
-        JPanel strip = new JPanel(new GridLayout(1, 3, 16, 0));
+        JPanel strip = new JPanel(new GridLayout(1, 3, 18, 0));
         strip.setOpaque(false);
 
         strip.add(createFleetCard_Assignments());
@@ -144,128 +230,136 @@ public class TransportDashboard extends JFrame {
     }
 
     private JPanel createFleetCard_Assignments() {
-        CardPanel card = new CardPanel();
-        card.setBackground(Color.WHITE);
-        card.setLayout(new BorderLayout(10, 10));
-        card.setBorder(new EmptyBorder(14, 14, 14, 14));
+        CardPanel card = new CardPanel(22, 10);
+        card.setBackground(CARD_BG);
+        card.setLayout(new BorderLayout(12, 12));
+        card.setBorder(new EmptyBorder(16, 16, 16, 16));
 
-        JLabel title = new JLabel("توزيع وربط البيانات");
-        title.setFont(new Font("Tahoma", Font.BOLD, 14));
-        title.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel top = createSectionHeader("توزيع وربط البيانات", "جاهزية الربط");
 
-        fhCarsAssignedDrivers = new JLabel("ربط سيارات بسائق: ...");
-        fhCarsAssignedLines = new JLabel("ربط سيارات بخط: ...");
+        fhCarsAssignedDrivers = createBodyLabel("ربط سيارات بسائق: ...");
+        fhCarsAssignedLines = createBodyLabel("ربط سيارات بخط: ...");
 
-        for (JLabel l : new JLabel[]{fhCarsAssignedDrivers, fhCarsAssignedLines}) {
-            l.setFont(new Font("Tahoma", Font.PLAIN, 13));
-            l.setForeground(new Color(30, 41, 59));
-            l.setHorizontalAlignment(SwingConstants.RIGHT);
-        }
+        pbDriversAssigned = makeMiniProgress(new Color(37, 99, 235));
+        pbLinesAssigned = makeMiniProgress(new Color(2, 132, 199));
 
-        pbDriversAssigned = makeMiniProgress();
-        pbLinesAssigned = makeMiniProgress();
-
-        JPanel rows = new JPanel();
+        JPanel rows = new JPanel(new GridLayout(4, 1, 8, 8));
         rows.setOpaque(false);
-        rows.setLayout(new GridLayout(4, 1, 8, 6));
         rows.add(fhCarsAssignedDrivers);
         rows.add(pbDriversAssigned);
         rows.add(fhCarsAssignedLines);
         rows.add(pbLinesAssigned);
 
-        card.add(title, BorderLayout.NORTH);
+        card.add(top, BorderLayout.NORTH);
         card.add(rows, BorderLayout.CENTER);
         return card;
     }
 
     private JPanel createFleetCard_Compliance() {
-        CardPanel card = new CardPanel();
-        card.setBackground(Color.WHITE);
-        card.setLayout(new BorderLayout(10, 10));
-        card.setBorder(new EmptyBorder(14, 14, 14, 14));
+        CardPanel card = new CardPanel(22, 10);
+        card.setBackground(CARD_BG);
+        card.setLayout(new BorderLayout(12, 12));
+        card.setBorder(new EmptyBorder(16, 16, 16, 16));
 
-        JLabel title = new JLabel("التراخيص والالتزام");
-        title.setFont(new Font("Tahoma", Font.BOLD, 14));
-        title.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel top = createSectionHeader("التراخيص والالتزام", "المهم قبل ما الدنيا تولع 😂");
 
-        fhLicensesSoon = new JLabel("تراخيص قريبة الانتهاء (30 يوم): ...");
-        fhLicensesSoon.setFont(new Font("Tahoma", Font.PLAIN, 13));
-        fhLicensesSoon.setForeground(new Color(30, 41, 59));
-        fhLicensesSoon.setHorizontalAlignment(SwingConstants.RIGHT);
+        fhLicensesSoon = createBodyLabel("تراخيص قريبة الانتهاء (30 يوم): ...");
+        pbLicensesSoon = makeMiniProgress(new Color(245, 158, 11));
 
-        pbLicensesSoon = makeMiniProgress();
-
-        JLabel hint = new JLabel("هدفنا: صفر مفاجآت 😄");
+        JLabel hint = new JLabel("هدفنا: صفر مفاجآت");
         hint.setFont(new Font("Tahoma", Font.PLAIN, 12));
-        hint.setForeground(new Color(100, 116, 139));
+        hint.setForeground(TEXT_MUTED);
         hint.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        JPanel center = new JPanel(new GridLayout(3, 1, 8, 6));
+        JPanel center = new JPanel(new GridLayout(3, 1, 8, 8));
         center.setOpaque(false);
         center.add(fhLicensesSoon);
         center.add(pbLicensesSoon);
         center.add(hint);
 
-        card.add(title, BorderLayout.NORTH);
+        card.add(top, BorderLayout.NORTH);
         card.add(center, BorderLayout.CENTER);
         return card;
     }
 
     private JPanel createFleetCard_Activity() {
-        CardPanel card = new CardPanel();
-        card.setBackground(Color.WHITE);
-        card.setLayout(new BorderLayout(10, 10));
-        card.setBorder(new EmptyBorder(14, 14, 14, 14));
+        CardPanel card = new CardPanel(22, 10);
+        card.setBackground(CARD_BG);
+        card.setLayout(new BorderLayout(12, 12));
+        card.setBorder(new EmptyBorder(16, 16, 16, 16));
 
-        JLabel title = new JLabel("نشاط آخر فترة");
-        title.setFont(new Font("Tahoma", Font.BOLD, 14));
-        title.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel top = createSectionHeader("نشاط آخر فترة", "ملخص سريع");
 
-        fhFuel7d = new JLabel("بنزين آخر 7 أيام: ...");
-        fhMaint30d = new JLabel("صيانة آخر 30 يوم: ...");
+        fhFuel7d = createBodyLabel("بنزين آخر 7 أيام: ...");
+        fhMaint30d = createBodyLabel("صيانة آخر 30 يوم: ...");
 
-        fhFuel7d.setFont(new Font("Tahoma", Font.PLAIN, 13));
-        fhMaint30d.setFont(new Font("Tahoma", Font.PLAIN, 13));
-
-        fhFuel7d.setForeground(new Color(30, 41, 59));
-        fhMaint30d.setForeground(new Color(30, 41, 59));
-
-        fhFuel7d.setHorizontalAlignment(SwingConstants.RIGHT);
-        fhMaint30d.setHorizontalAlignment(SwingConstants.RIGHT);
-
-        JPanel grid = new JPanel(new GridLayout(2, 1, 8, 6));
+        JPanel grid = new JPanel(new GridLayout(2, 1, 8, 8));
         grid.setOpaque(false);
         grid.add(fhFuel7d);
         grid.add(fhMaint30d);
 
-        card.add(title, BorderLayout.NORTH);
+        card.add(top, BorderLayout.NORTH);
         card.add(grid, BorderLayout.CENTER);
         return card;
     }
 
-    private JProgressBar makeMiniProgress() {
+    private JPanel createSectionHeader(String titleText, String badgeText) {
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+
+        JLabel title = new JLabel(titleText);
+        title.setFont(new Font("Tahoma", Font.BOLD, 15));
+        title.setForeground(TEXT_DARK);
+        title.setHorizontalAlignment(SwingConstants.RIGHT);
+
+        JLabel badge = new JLabel(badgeText);
+        badge.setFont(new Font("Tahoma", Font.PLAIN, 11));
+        badge.setForeground(PRIMARY_DARK);
+        badge.setOpaque(true);
+        badge.setBackground(PRIMARY_LIGHT);
+        badge.setBorder(new EmptyBorder(4, 10, 4, 10));
+        badge.setHorizontalAlignment(SwingConstants.CENTER);
+
+        top.add(title, BorderLayout.EAST);
+        top.add(badge, BorderLayout.WEST);
+        return top;
+    }
+
+    private JLabel createBodyLabel(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(new Font("Tahoma", Font.PLAIN, 13));
+        l.setForeground(TEXT_DARK);
+        l.setHorizontalAlignment(SwingConstants.RIGHT);
+        return l;
+    }
+
+    private JProgressBar makeMiniProgress(Color fg) {
         JProgressBar pb = new JProgressBar(0, 100);
         pb.setValue(0);
         pb.setStringPainted(false);
         pb.setBorderPainted(false);
         pb.setOpaque(false);
+        pb.setForeground(fg);
+        pb.setBackground(new Color(226, 232, 240));
         pb.setPreferredSize(new Dimension(100, 10));
         return pb;
     }
 
     // ===== Alerts Center =====
     private JPanel createAlertsCenter() {
-        CardPanel card = new CardPanel();
-        card.setBackground(Color.WHITE);
-        card.setLayout(new BorderLayout(10, 10));
+        CardPanel card = new CardPanel(24, 10);
+        card.setBackground(CARD_BG);
+        card.setLayout(new BorderLayout(12, 12));
         card.setBorder(new EmptyBorder(16, 16, 16, 16));
 
         JLabel title = new JLabel("مركز التنبيهات");
-        title.setFont(new Font("Tahoma", Font.BOLD, 16));
+        title.setFont(new Font("Tahoma", Font.BOLD, 18));
+        title.setForeground(TEXT_DARK);
         title.setHorizontalAlignment(SwingConstants.RIGHT);
 
         cbAlertFilter = new JComboBox<>(new String[]{"الكل", "تراخيص", "صيانة", "بنزين"});
         cbAlertFilter.setFont(new Font("Tahoma", Font.PLAIN, 13));
+        cbAlertFilter.setPreferredSize(new Dimension(125, 36));
 
         txtAlertSearch = new JTextField();
         txtAlertSearch.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -275,9 +369,14 @@ public class TransportDashboard extends JFrame {
         tb.setTitleJustification(TitledBorder.RIGHT);
         txtAlertSearch.setBorder(tb);
 
-        JButton btnRefresh = new JButton("تحديث");
-        btnRefresh.setFont(new Font("Tahoma", Font.PLAIN, 12));
+        GhostButton btnRefresh = new GhostButton("تحديث");
         btnRefresh.addActionListener(e -> refreshDashboardBodyAsync());
+
+        AccentButton btnPdfMini = new AccentButton("PDF");
+        btnPdfMini.setToolTipText("زر شكلي فقط حاليًا");
+        btnPdfMini.addActionListener(e -> {
+            // Placeholder only
+        });
 
         JPanel topRow = new JPanel(new BorderLayout(10, 10));
         topRow.setOpaque(false);
@@ -285,6 +384,7 @@ public class TransportDashboard extends JFrame {
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         left.setOpaque(false);
         left.add(btnRefresh);
+        left.add(btnPdfMini);
         left.add(cbAlertFilter);
 
         topRow.add(title, BorderLayout.EAST);
@@ -317,7 +417,8 @@ public class TransportDashboard extends JFrame {
         });
 
         JScrollPane sp = new JScrollPane(alertsTable);
-        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.setBorder(BorderFactory.createLineBorder(BORDER_SOFT));
+        sp.getViewport().setBackground(Color.WHITE);
 
         TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(alertsModel);
         alertsTable.setRowSorter(sorter);
@@ -354,18 +455,21 @@ public class TransportDashboard extends JFrame {
     private void styleAlertsTable(JTable table) {
         table.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
         table.setFont(new Font("Tahoma", Font.PLAIN, 13));
-        table.setRowHeight(32);
+        table.setForeground(TEXT_DARK);
+        table.setRowHeight(36);
         table.setShowHorizontalLines(true);
         table.setShowVerticalLines(false);
-        table.setGridColor(new Color(220, 220, 220));
+        table.setGridColor(new Color(235, 241, 247));
         table.setSelectionBackground(new Color(37, 99, 235));
         table.setSelectionForeground(Color.WHITE);
         table.setIntercellSpacing(new Dimension(0, 0));
+        table.setBorder(BorderFactory.createEmptyBorder());
 
         JTableHeader header = new JTableHeader(table.getColumnModel());
         header.setFont(new Font("Tahoma", Font.BOLD, 13));
-        header.setBackground(new Color(230, 235, 245));
-        header.setForeground(new Color(30, 41, 59));
+        header.setBackground(new Color(241, 245, 249));
+        header.setForeground(TEXT_DARK);
+        header.setPreferredSize(new Dimension(100, 40));
         header.setReorderingAllowed(false);
         header.setResizingAllowed(true);
         ((DefaultTableCellRenderer) header.getDefaultRenderer()).setHorizontalAlignment(SwingConstants.CENTER);
@@ -396,7 +500,7 @@ public class TransportDashboard extends JFrame {
         if (type != null && !"الكل".equals(type)) {
             filters.add(new RowFilter<Object, Object>() {
                 @Override
-                public boolean include(Entry<? extends Object, ? extends Object> entry) {
+                public boolean include(RowFilter.Entry<? extends Object, ? extends Object> entry) {
                     String tag = String.valueOf(entry.getValue(4));
 
                     if ("تراخيص".equals(type)) {
@@ -655,65 +759,80 @@ public class TransportDashboard extends JFrame {
 
     // ================== Top stats ==================
     private JPanel createStatsPanel() {
-        JPanel statsPanel = new JPanel(new GridLayout(1, 4, 16, 0));
+        JPanel statsPanel = new JPanel(new GridLayout(1, 4, 18, 0));
         statsPanel.setOpaque(false);
-        statsPanel.setBorder(new EmptyBorder(0, 0, 16, 0));
 
         lblLinesCount = new JLabel("...");
         lblCarsCount = new JLabel("...");
         lblDriversCount = new JLabel("...");
         lblEmployeesCount = new JLabel("...");
 
-        statsPanel.add(createStatCard("عدد الخطوط", lblLinesCount, "icons/route1.png"));
-        statsPanel.add(createStatCard("السيارات", lblCarsCount, "icons/car.png"));
-        statsPanel.add(createStatCard("السائقون", lblDriversCount, "icons/driver.png"));
-        statsPanel.add(createStatCard("الموظفون", lblEmployeesCount, "icons/users.png"));
+        statsPanel.add(createStatCard("عدد الخطوط", lblLinesCount, "icons/route1.png", new Color(59, 130, 246)));
+        statsPanel.add(createStatCard("السيارات", lblCarsCount, "icons/car.png", new Color(16, 185, 129)));
+        statsPanel.add(createStatCard("السائقون", lblDriversCount, "icons/driver.png", new Color(245, 158, 11)));
+        statsPanel.add(createStatCard("الموظفون", lblEmployeesCount, "icons/users.png", new Color(168, 85, 247)));
 
         return statsPanel;
     }
 
-    private JPanel createStatCard(String title, JLabel valueLabel, String iconPath) {
-        CardPanel card = new CardPanel();
-        card.setBackground(Color.WHITE);
-        card.setLayout(new BorderLayout(10, 10));
+    private JPanel createStatCard(String title, JLabel valueLabel, String iconPath, Color accent) {
+        CardPanel card = new CardPanel(24, 10);
+        card.setBackground(CARD_BG);
+        card.setLayout(new BorderLayout(12, 12));
         card.setBorder(new EmptyBorder(16, 16, 16, 16));
+
+        JPanel rightText = new JPanel(new GridLayout(2, 1, 0, 4));
+        rightText.setOpaque(false);
 
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font("Tahoma", Font.PLAIN, 13));
-        titleLabel.setForeground(new Color(75, 85, 99));
+        titleLabel.setForeground(TEXT_MUTED);
         titleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
         valueLabel.setFont(new Font("Tahoma", Font.BOLD, 30));
-        valueLabel.setForeground(new Color(15, 23, 42));
+        valueLabel.setForeground(TEXT_DARK);
         valueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        JLabel iconLabel = new JLabel() {
+        rightText.add(titleLabel);
+        rightText.add(valueLabel);
+
+        JPanel iconWrap = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(37, 99, 235, 14));
-                g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 24));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 55));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
+        iconWrap.setOpaque(false);
+        iconWrap.setPreferredSize(new Dimension(56, 56));
 
+        JLabel iconLabel = new JLabel();
         iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        iconLabel.setPreferredSize(new Dimension(44, 44));
 
-        ImageIcon icon = loadIcon(iconPath, 22);
+        ImageIcon icon = loadIcon(iconPath, 24);
         if (icon != null) {
             iconLabel.setIcon(icon);
+        } else {
+            iconLabel.setText("•");
+            iconLabel.setFont(new Font("Tahoma", Font.BOLD, 20));
+            iconLabel.setForeground(accent);
         }
 
-        JPanel topRow = new JPanel(new BorderLayout());
-        topRow.setOpaque(false);
-        topRow.add(titleLabel, BorderLayout.NORTH);
-        topRow.add(valueLabel, BorderLayout.CENTER);
+        iconWrap.add(iconLabel, BorderLayout.CENTER);
 
-        card.add(iconLabel, BorderLayout.WEST);
-        card.add(topRow, BorderLayout.CENTER);
+        JPanel accentBar = new JPanel();
+        accentBar.setBackground(accent);
+        accentBar.setPreferredSize(new Dimension(100, 4));
+
+        card.add(accentBar, BorderLayout.NORTH);
+        card.add(iconWrap, BorderLayout.WEST);
+        card.add(rightText, BorderLayout.CENTER);
 
         return card;
     }
@@ -916,6 +1035,10 @@ public class TransportDashboard extends JFrame {
         return button;
     }
 
+    private void sideBarSpacing(JComponent c) {
+        c.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+    }
+
     private void setActiveSidebarButton(SidebarButton btn) {
         if (selectedSidebarButton != null) {
             selectedSidebarButton.setActive(false);
@@ -1025,10 +1148,16 @@ public class TransportDashboard extends JFrame {
     // ===== Card panel =====
     private static class CardPanel extends JPanel {
 
-        private final int arc = 18;
-        private final int shadowSize = 8;
+        private final int arc;
+        private final int shadowSize;
 
         public CardPanel() {
+            this(18, 8);
+        }
+
+        public CardPanel(int arc, int shadowSize) {
+            this.arc = arc;
+            this.shadowSize = shadowSize;
             setOpaque(false);
         }
 
@@ -1042,11 +1171,17 @@ public class TransportDashboard extends JFrame {
             int w = getWidth() - shadowSize * 2;
             int h = getHeight() - shadowSize * 2;
 
-            g2.setColor(new Color(0, 0, 0, 40));
-            g2.fillRoundRect(x + 2, y + 3, w, h, arc, arc);
+            g2.setColor(new Color(15, 23, 42, 18));
+            g2.fillRoundRect(x + 2, y + 4, w, h, arc, arc);
+
+            g2.setColor(new Color(255, 255, 255, 120));
+            g2.fillRoundRect(x, y, w, h, arc, arc);
 
             g2.setColor(getBackground());
             g2.fillRoundRect(x, y, w, h, arc, arc);
+
+            g2.setColor(new Color(226, 232, 240));
+            g2.drawRoundRect(x, y, w - 1, h - 1, arc, arc);
 
             g2.dispose();
             super.paintComponent(g);
@@ -1120,13 +1255,114 @@ public class TransportDashboard extends JFrame {
         }
     }
 
+    // ===== Dashboard action button =====
+    private static class AccentButton extends JButton {
+
+        private boolean hover = false;
+        private final int arc = 18;
+
+        AccentButton(String text) {
+            super(text);
+            setFocusPainted(false);
+            setBorderPainted(false);
+            setContentAreaFilled(false);
+            setOpaque(false);
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+            setForeground(Color.WHITE);
+            setFont(new Font("Tahoma", Font.BOLD, 13));
+            setMargin(new Insets(8, 14, 8, 14));
+
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hover = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hover = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            GradientPaint gp = new GradientPaint(
+                    0, 0,
+                    hover ? new Color(30, 136, 229) : new Color(25, 118, 210),
+                    getWidth(), 0,
+                    hover ? new Color(13, 71, 161) : new Color(21, 101, 192)
+            );
+            g2.setPaint(gp);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+
+            g2.setColor(new Color(255, 255, 255, 90));
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
+
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    private static class GhostButton extends JButton {
+
+        private boolean hover = false;
+        private final int arc = 18;
+
+        GhostButton(String text) {
+            super(text);
+            setFocusPainted(false);
+            setBorderPainted(false);
+            setContentAreaFilled(false);
+            setOpaque(false);
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+            setForeground(TEXT_DARK);
+            setFont(new Font("Tahoma", Font.PLAIN, 13));
+            setMargin(new Insets(8, 14, 8, 14));
+
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hover = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hover = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            g2.setColor(hover ? new Color(226, 232, 240) : new Color(248, 250, 252));
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+
+            g2.setColor(new Color(203, 213, 225));
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
+
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
     // ===== TopBar pill button =====
-    private static class PillButton extends JButton {
+    private static class GhostTopButton extends JButton {
 
         private boolean hover = false;
         private final int arc = 16;
 
-        PillButton(String text) {
+        GhostTopButton(String text) {
             super(text);
             setFocusPainted(false);
             setBorderPainted(false);
@@ -1157,7 +1393,7 @@ public class TransportDashboard extends JFrame {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            int alpha = hover ? 70 : 45;
+            int alpha = hover ? 82 : 52;
             g2.setColor(new Color(255, 255, 255, alpha));
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
 
@@ -1247,6 +1483,54 @@ public class TransportDashboard extends JFrame {
 
         public JTableHeader(javax.swing.table.TableColumnModel cm) {
             super(cm);
+        }
+    }
+
+    // ===== Top bar logout button =====
+    private static class PillButton extends JButton {
+
+        private boolean hover = false;
+        private final int arc = 18;
+
+        PillButton(String text) {
+            super(text);
+            setFocusPainted(false);
+            setBorderPainted(false);
+            setContentAreaFilled(false);
+            setOpaque(false);
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+            setForeground(Color.WHITE);
+            setFont(new Font("Tahoma", Font.PLAIN, 13));
+            setMargin(new Insets(6, 10, 6, 10));
+
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hover = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hover = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            g2.setColor(new Color(255, 255, 255, hover ? 80 : 52));
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+
+            g2.setColor(new Color(255, 255, 255, 110));
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
+
+            g2.dispose();
+            super.paintComponent(g);
         }
     }
 
