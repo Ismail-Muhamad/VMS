@@ -1,3 +1,5 @@
+package DB;
+
 import DB.DB;
 
 public final class BootstrapData {
@@ -94,9 +96,9 @@ public final class BootstrapData {
                     + "(SELECT Employee_ID FROM Employees WHERE Phone = ?), "
                     + "?, ?, ?)",
                     "01000000000",
-                    "admin",
+                    "123",
                     "ADMIN",
-                    "admin123"
+                    "123"
             );
         }
     }

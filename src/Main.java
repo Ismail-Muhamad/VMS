@@ -1,16 +1,19 @@
-
+import DB.BootstrapData;
 import javax.swing.UIManager;
+import javax.swing.SwingUtilities;
 
 public class Main {
     public static void main(String[] args) {
         BootstrapData.seedAdminIfDatabaseEmpty();
 
-        java.awt.EventQueue.invokeLater(() -> {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        SwingUtilities.invokeLater(() -> {
             new Login().setVisible(true);
         });
-                try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {
-        }
     }
 }
