@@ -21,8 +21,8 @@ public final class BootstrapData {
             ensureAdminUserExists();
 
             System.out.println("✅ Default admin created successfully.");
-            System.out.println("Username: admin");
-            System.out.println("Password: admin123");
+            System.out.println("Username: 123");
+            System.out.println("Password: 123");
 
         } catch (Exception e) {
             e.printStackTrace();
