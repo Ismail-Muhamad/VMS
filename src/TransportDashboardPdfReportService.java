@@ -1,5 +1,6 @@
 
 import DB.DB;
+import com.ibm.icu.text.ArabicShaping;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -13,6 +14,7 @@ import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import com.ibm.icu.text.Bidi;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -70,17 +72,19 @@ public final class TransportDashboardPdfReportService {
         ReportData data = loadReportData();
 
         try (PDDocument doc = new PDDocument()) {
-            PDFont regular = tryLoadFont(doc,
-                    new File("resources/fonts/NotoSans-Regular.ttf"),
-                    new File("src/main/resources/fonts/NotoSans-Regular.ttf"),
-                    new File("fonts/NotoSans-Regular.ttf")
-            );
-            PDFont bold = tryLoadFont(doc,
-                    new File("resources/fonts/NotoSans-Bold.ttf"),
-                    new File("src/main/resources/fonts/NotoSans-Bold.ttf"),
-                    new File("fonts/NotoSans-Bold.ttf")
-            );
+//            PDFont regular = tryLoadFont(doc,
+//                    new File("C:/Windows/Fonts/arial.ttf"),
+//                    new File("C:/Windows/Fonts/tahoma.ttf"),
+//                    new File("fonts/NotoSans-Regular.ttf")
+//            );
+//            PDFont bold = tryLoadFont(doc,
+//                    new File("C:/Windows/Fonts/arialbd.ttf"),
+//                    new File("C:/Windows/Fonts/tahomabd.ttf"),
+//                    new File("fonts/NotoSans-Bold.ttf")
+//            );
 
+            PDFont regular = PDType0Font.load(doc, new File("C:/Windows/Fonts/arial.ttf"));
+            PDFont bold = PDType0Font.load(doc, new File("C:/Windows/Fonts/arialbd.ttf"));
             if (regular == null) {
                 regular = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
             }
@@ -89,10 +93,10 @@ public final class TransportDashboardPdfReportService {
             }
 
             PDDocumentInformation info = doc.getDocumentInformation();
-            info.setTitle("Transport Dashboard Report");
-            info.setAuthor(generatedBy == null || generatedBy.isBlank() ? "System" : generatedBy);
-            info.setSubject("Fleet dashboard executive report");
-            info.setCreator("TransportDashboardPdfReportService");
+            info.setTitle("تقرير لوحة تحكم النقل");
+            info.setAuthor(generatedBy == null || generatedBy.isBlank() ? "النظام" : generatedBy);
+            info.setSubject("تقرير تنفيذي للسيارات والحركة");
+            info.setCreator("خدمة تقارير لوحة التحكم");
 
             PdfPainter painter = new PdfPainter(doc, regular, bold, generatedBy, data.generatedAt);
             painter.addExecutivePage(data);
@@ -233,9 +237,9 @@ public final class TransportDashboardPdfReportService {
                     rs -> {
                         int days = rs.getInt("DAYS_LEFT");
                         AlertRow row = new AlertRow();
-                        row.priority = days <= 7 ? "HIGH" : "MEDIUM";
-                        row.type = "License";
-                        row.message = "Vehicle license expiring soon: " + safeText(rs.getString("ITEM_NAME")) + " (" + days + " days)";
+                        row.priority = days <= 7 ? "عالي" : "متوسط";
+                        row.type = "الترخيص";
+                        row.message = "ترخيص السيارة أوشك على الانتهاء: " + safeText(rs.getString("ITEM_NAME")) + " (بعد " + days + " يوم)";
                         row.date = safeText(rs.getString("D"));
                         return row;
                     }
@@ -256,9 +260,9 @@ public final class TransportDashboardPdfReportService {
                     rs -> {
                         int days = rs.getInt("DAYS_LEFT");
                         AlertRow row = new AlertRow();
-                        row.priority = days <= 7 ? "HIGH" : "MEDIUM";
-                        row.type = "License";
-                        row.message = "Driver license expiring soon: " + safeText(rs.getString("ITEM_NAME")) + " (" + days + " days)";
+                        row.priority = days <= 7 ? "عالي" : "متوسط";
+                        row.type = "الترخيص";
+                        row.message = "رخصة السائق أوشكت على الانتهاء: " + safeText(rs.getString("ITEM_NAME")) + " (بعد " + days + " يوم)";
                         row.date = safeText(rs.getString("D"));
                         return row;
                     }
@@ -268,18 +272,18 @@ public final class TransportDashboardPdfReportService {
 
         if (data.maintenance30d > 0) {
             AlertRow row = new AlertRow();
-            row.priority = "LOW";
-            row.type = "Maintenance";
-            row.message = "Maintenance operations in last 30 days: " + data.maintenance30d;
+            row.priority = "منخفض";
+            row.type = "الصيانة";
+            row.message = "عمليات الصيانة خلال آخر 30 يوم: " + data.maintenance30d;
             row.date = data.generatedAt.toLocalDate().toString();
             rows.add(row);
         }
 
         if (data.fuelLiters7d > 0 || data.fuelCost7d > 0) {
             AlertRow row = new AlertRow();
-            row.priority = "LOW";
-            row.type = "Fuel";
-            row.message = "Fuel in last 7 days: " + fmt(data.fuelLiters7d) + " L | " + fmt(data.fuelCost7d) + " EGP";
+            row.priority = "منخفض";
+            row.type = "البنزين";
+            row.message = "البنزين خلال آخر 7 أيام: " + fmt(data.fuelLiters7d) + " لتر | " + fmt(data.fuelCost7d) + " جنيه";
             row.date = data.generatedAt.toLocalDate().toString();
             rows.add(row);
         }
@@ -289,10 +293,10 @@ public final class TransportDashboardPdfReportService {
     }
 
     private static int rank(String p) {
-        if ("HIGH".equalsIgnoreCase(p)) {
+        if ("عالي".equalsIgnoreCase(p)) {
             return 3;
         }
-        if ("MEDIUM".equalsIgnoreCase(p)) {
+        if ("متوسط".equalsIgnoreCase(p)) {
             return 2;
         }
         return 1;
@@ -334,36 +338,36 @@ public final class TransportDashboardPdfReportService {
         }
 
         void addExecutivePage(ReportData data) throws IOException {
-            newPage("Executive Dashboard Report", "Overview and decision-friendly snapshot");
+            newPage("التقرير التنفيذي للوحة التحكم", "نظرة عامة سريعة تدعم اتخاذ القرار");
 
             drawStatGrid(data);
             y -= 8;
-            drawSectionTitle("Operational Health");
+            drawSectionTitle("الحالة التشغيلية");
             drawHealthCards(data);
             y -= 6;
-            drawSectionTitle("Highlights");
+            drawSectionTitle("أهم المؤشرات");
             drawBullet(
-                    "Cars linked to drivers: " + data.carsWithDriver + " / " + data.totalCars
-                    + " | Cars linked to lines: " + data.carsWithLine + " / " + data.totalCars
+                    "السيارات المرتبطة بسائق: " + data.carsWithDriver + " / " + data.totalCars
+                    + " | السيارات المرتبطة بخط: " + data.carsWithLine + " / " + data.totalCars
             );
             drawBullet(
-                    "Expiring licenses within 30 days: vehicles " + data.soonCarsLic + ", drivers " + data.soonDrvLic
+                    "التراخيص القريبة من الانتهاء خلال 30 يوم: السيارات " + data.soonCarsLic + "، السائقون " + data.soonDrvLic
             );
             drawBullet(
-                    "Fuel last 7 days: " + fmt(data.fuelLiters7d) + " L, cost " + fmt(data.fuelCost7d) + " EGP"
+                    "البنزين خلال آخر 7 أيام: " + fmt(data.fuelLiters7d) + " لتر، التكلفة " + fmt(data.fuelCost7d) + " جنيه"
             );
             drawBullet(
-                    "Maintenance operations last 30 days: " + data.maintenance30d
+                    "عمليات الصيانة خلال آخر 30 يوم: " + data.maintenance30d
             );
 
             finishPage();
         }
 
         void addVehiclesAssignmentPage(ReportData data) throws IOException {
-            newPage("Vehicle Assignment Matrix", "Cars, drivers, route mapping and expiry dates");
+            newPage("مصفوفة توزيع السيارات", "السيارات والسائقون والخطوط وتواريخ انتهاء التراخيص");
 
-            drawSectionTitle("Assignment Table");
-            List<String> headers = List.of("Car ID", "Car Name", "Driver", "Line", "License Expiry");
+            drawSectionTitle("جدول التوزيع");
+            List<String> headers = List.of("كود السيارة", "اسم السيارة", "السائق", "الخط", "انتهاء الترخيص");
             List<float[]> colors = null;
 
             List<List<String>> rows = new ArrayList<>();
@@ -384,10 +388,10 @@ public final class TransportDashboardPdfReportService {
         }
 
         void addAlertsPage(ReportData data) throws IOException {
-            newPage("Alerts & Exceptions", "Priority-based review for action");
+            newPage("التنبيهات والاستثناءات", "مراجعة حسب الأولوية لاتخاذ الإجراء");
 
-            drawSectionTitle("Alerts");
-            List<String> headers = List.of("Priority", "Type", "Message", "Date");
+            drawSectionTitle("التنبيهات");
+            List<String> headers = List.of("الأولوية", "النوع", "الوصف", "التاريخ");
             List<List<String>> rows = new ArrayList<>();
             List<float[]> rowBg = new ArrayList<>();
 
@@ -406,7 +410,7 @@ public final class TransportDashboardPdfReportService {
 
             if (data.alertRows.isEmpty()) {
                 y -= 10;
-                drawMuted("No active alerts. Which is beautiful... suspiciously beautiful");
+                drawMuted("لا توجد تنبيهات نشطة حاليًا.");
             }
 
             finishPage();
@@ -420,12 +424,12 @@ public final class TransportDashboardPdfReportService {
             float xLeft = MARGIN;
             float xRight = MARGIN + cardW + gap;
 
-            drawStatCard(xLeft, y - cardH, cardW, cardH, "Lines", String.valueOf(data.totalLines), PRIMARY);
-            drawStatCard(xRight, y - cardH, cardW, cardH, "Cars", String.valueOf(data.totalCars), SUCCESS);
+            drawStatCard(xLeft, y - cardH, cardW, cardH, "الخطوط", String.valueOf(data.totalLines), PRIMARY);
+            drawStatCard(xRight, y - cardH, cardW, cardH, "السيارات", String.valueOf(data.totalCars), SUCCESS);
             y -= (cardH + gap);
 
-            drawStatCard(xLeft, y - cardH, cardW, cardH, "Drivers", String.valueOf(data.totalDrivers), WARNING);
-            drawStatCard(xRight, y - cardH, cardW, cardH, "Employees", String.valueOf(data.totalEmployees), PRIMARY_2);
+            drawStatCard(xLeft, y - cardH, cardW, cardH, "السائقون", String.valueOf(data.totalDrivers), WARNING);
+            drawStatCard(xRight, y - cardH, cardW, cardH, "الموظفون", String.valueOf(data.totalEmployees), PRIMARY_2);
             y -= (cardH + 10);
         }
 
@@ -445,28 +449,28 @@ public final class TransportDashboardPdfReportService {
 
             drawHealthCard(
                     x1, y - cardH, cardW, cardH,
-                    "Assignments",
-                    "Cars linked to drivers: " + data.carsWithDriver + "/" + data.totalCars,
-                    "Cars linked to lines: " + data.carsWithLine + "/" + data.totalCars,
+                    "الربط والتوزيع",
+                    "السيارات المرتبطة بسائق: " + data.carsWithDriver + "/" + data.totalCars,
+                    "السيارات المرتبطة بخط: " + data.carsWithLine + "/" + data.totalCars,
                     pctDrivers, pctLines,
                     PRIMARY, PRIMARY_2
             );
 
             drawHealthCard(
                     x2, y - cardH, cardW, cardH,
-                    "Compliance",
-                    "Vehicle licenses soon: " + data.soonCarsLic,
-                    "Driver licenses soon: " + data.soonDrvLic,
+                    "الالتزام والتراخيص",
+                    "تراخيص السيارات القريبة: " + data.soonCarsLic,
+                    "رخص السائقين القريبة: " + data.soonDrvLic,
                     pctLic, 100 - pctLic,
                     WARNING, DANGER
             );
 
             drawMiniMetricCard(
                     x3, y - cardH, cardW, cardH,
-                    "Activity",
-                    "Fuel 7d",
-                    fmt(data.fuelLiters7d) + " L | " + fmt(data.fuelCost7d) + " EGP",
-                    "Maintenance 30d",
+                    "النشاط",
+                    "بنزين 7 أيام",
+                    fmt(data.fuelLiters7d) + " لتر | " + fmt(data.fuelCost7d) + " جنيه",
+                    "صيانة 30 يوم",
                     String.valueOf(data.maintenance30d)
             );
 
@@ -500,7 +504,7 @@ public final class TransportDashboardPdfReportService {
             for (int r = 0; r < rows.size(); r++) {
                 if (y - rowH < MARGIN + FOOTER_H + 14) {
                     finishPage();
-                    newPage("Alerts & Exceptions", "continued");
+                    newPage("التنبيهات والاستثناءات", "تكملة");
                     drawRoundedRect(tableX, y - headerH, tableW, headerH, 8, new Color(238, 244, 251), BORDER);
 
                     cx = tableX;
@@ -530,7 +534,7 @@ public final class TransportDashboardPdfReportService {
                 for (int i = 0; i < row.size(); i++) {
                     String cell = row.get(i);
                     Color textColor = INK;
-                    if (i == 0 && headers.get(0).equalsIgnoreCase("Priority")) {
+                    if (i == 0 && headers.get(0).equalsIgnoreCase("الأولوية")) {
                         textColor = priorityTextColor(cell);
                     }
 
@@ -566,7 +570,7 @@ public final class TransportDashboardPdfReportService {
         private void ensureSpace(float needed) throws IOException {
             if (y - needed < MARGIN + FOOTER_H) {
                 finishPage();
-                newPage("Transport Dashboard Report", "continued");
+                newPage("تقرير لوحة التحكم", "تكملة");
             }
         }
 
@@ -587,9 +591,9 @@ public final class TransportDashboardPdfReportService {
             drawText(title, bold, 18, Color.WHITE, x + 18, yy + 36);
             drawText(subtitle, regular, 10, new Color(225, 238, 255), x + 18, yy + 20);
 
-            drawText("Generated by: " + generatedBy, regular, 9, new Color(225, 238, 255), x + w - 150, yy + 36);
-            drawText("Generated at: " + generatedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), regular, 9,
-                    new Color(225, 238, 255), x + w - 170, yy + 20);
+            drawText("تم الإنشاء بواسطة: " + generatedBy, regular, 9, new Color(225, 238, 255), x + w - 190, yy + 36);
+            drawText("تاريخ الإنشاء: " + generatedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), regular, 9,
+                    new Color(225, 238, 255), x + w - 210, yy + 20);
         }
 
         private void drawGradientLikeBand(float x, float y, float w, float h) throws IOException {
@@ -612,8 +616,8 @@ public final class TransportDashboardPdfReportService {
         }
 
         private void drawFooter() throws IOException {
-            String left = "Transport Management System";
-            String right = "Page " + pageNo;
+            String left = "نظام إدارة حركة السيارات";
+            String right = "صفحة " + pageNo;
 
             drawText(left, regular, 8, MUTED, MARGIN, 16);
             drawText(right, regular, 8, MUTED, page.getMediaBox().getWidth() - MARGIN - 28, 16);
@@ -721,13 +725,47 @@ public final class TransportDashboardPdfReportService {
             cs.stroke();
         }
 
+        private String shapeArabic(String text) {
+            if (text == null || text.isBlank()) {
+                return "";
+            }
+
+            try {
+                ArabicShaping shaper = new ArabicShaping(ArabicShaping.LETTERS_SHAPE);
+                String shaped = shaper.shape(text);
+
+                Bidi bidi = new Bidi(shaped, Bidi.DIRECTION_RIGHT_TO_LEFT);
+                return bidi.writeReordered(Bidi.DO_MIRRORING);
+            } catch (Exception e) {
+                return text;
+            }
+        }
+
         private void drawText(String text, PDFont font, float size, Color color, float x, float y) throws IOException {
+            String value = sanitize(text);
+
+            if (containsArabic(value)) {
+                value = shapeArabic(value);
+            }
+
             cs.beginText();
             cs.setFont(font, size);
             cs.setNonStrokingColor(color);
             cs.newLineAtOffset(x, y);
-            cs.showText(sanitize(text));
+            cs.showText(value);
             cs.endText();
+        }
+
+        private boolean containsArabic(String text) {
+            if (text == null) {
+                return false;
+            }
+            for (char c : text.toCharArray()) {
+                if (c >= 0x0600 && c <= 0x06FF) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void drawFittedText(String text, PDFont font, float size, Color color, float x, float y, float maxWidth) throws IOException {
@@ -780,20 +818,20 @@ public final class TransportDashboardPdfReportService {
         }
 
         private float[] priorityColor(String p) {
-            if ("HIGH".equalsIgnoreCase(p)) {
+            if ("عالي".equalsIgnoreCase(p)) {
                 return new float[]{254, 226, 226, 255};
             }
-            if ("MEDIUM".equalsIgnoreCase(p)) {
+            if ("متوسط".equalsIgnoreCase(p)) {
                 return new float[]{255, 247, 237, 255};
             }
             return new float[]{239, 246, 255, 255};
         }
 
         private Color priorityTextColor(String p) {
-            if ("HIGH".equalsIgnoreCase(p)) {
+            if ("عالي".equalsIgnoreCase(p)) {
                 return DANGER;
             }
-            if ("MEDIUM".equalsIgnoreCase(p)) {
+            if ("متوسط".equalsIgnoreCase(p)) {
                 return WARNING;
             }
             return PRIMARY;
